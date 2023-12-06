@@ -1,0 +1,11 @@
+{
+"type": "FeatureCollection",
+"name": "evacuation_data",
+"crs": { "type": "name", "properties": { "name": "urn:ogc:def:crs:OGC:1.3:CRS84" } },
+"features": [
+{ "type": "Feature", "properties": { "name": "柳町小学校", "エレベーター有/避難スペースが１階": 1, "スロープ等": 1, "点字ブロック": 0, "だれでもトイレ": 1, "その他": "" }, "geometry": { "type": "Point", "coordinates": [ 139.75015, 35.71453313 ] } },
+{ "type": "Feature", "properties": { "name": "指ヶ谷小学校", "エレベーター有/避難スペースが１階": 0, "スロープ等": 1, "点字ブロック": 0, "だれでもトイレ": 1, "その他": "" }, "geometry": { "type": "Point", "coordinates": [ 139.7507578, 35.71732183 ] } },
+{ "type": "Feature", "properties": { "name": "誠之小学校", "エレベーター有/避難スペースが１階": 0, "スロープ等": 1, "点字ブロック": 1, "だれでもトイレ": 1, "その他": "" }, "geometry": { "type": "Point", "coordinates": [ 139.7541095, 35.71792286 ] } },
+{ "type": "Feature", "properties": { "name": "第六中学校", "エレベーター有/避難スペースが１階": 1, "スロープ等": 1, "点字ブロック": 1, "だれでもトイレ": 1, "その他": "" }, "geometry": { "type": "Point", "coordinates": [ 139.757472, 35.716897 ] } }
+]
+}

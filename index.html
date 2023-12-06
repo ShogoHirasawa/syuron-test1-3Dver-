@@ -1,0 +1,336 @@
+<!DOCTYPE html>
+<html lang="ja">
+  <head>
+    <meta charset="utf-8" />
+    <meta content="IE=edge" http-equiv="X-UA-Compatible" />
+    <meta content="width=device-width, initial-scale=1.0" name="viewport" />
+    <title>02東大本郷キャンパス付近 洪水ハザードマップ</title>
+    <script src="https://unpkg.com/maplibre-gl@3.4.0/dist/maplibre-gl.js"></script>
+    <script type="module" src="./maplibre-gl-gsi-terrain-fast-png.js"></script>
+    <link
+      href="https://unpkg.com/maplibre-gl@3.4.0/dist/maplibre-gl.css"
+      rel="stylesheet"
+    />
+    <style>
+      html,
+      body,
+      #map {
+        width: 100vw;
+        height: 100vh;
+        padding: 0;
+        margin: 0;
+      }
+      .legend {
+        position: absolute;
+        top: 10px;
+        left: 10px;
+        z-index: 1000;
+        background-color: rgba(255, 255, 255, 0.8);
+        padding: 10px;
+        border-radius: 5px;
+        font-size: 14px;
+      }
+
+      .color-box {
+        display: inline-block;
+        width: 20px;
+        height: 20px;
+        margin-right: 5px;
+        vertical-align: middle;
+      }
+
+      .circle {
+        display: inline-block;
+        width: 10px; /* circle-radius (20) * 2 + circle-stroke-width (4) * 2 */
+        height: 10px; /* same as width for a circle */
+        background-color: #000000;
+        border: 4px solid #fff;
+        border-radius: 50%; /* makes the shape a circle */
+        vertical-align: middle; /* helps with alignment in legend */
+      }
+      .worningtext {
+        background-color: red;
+        color: yellow;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="legend" id="legend">
+      <button
+        id="toggle-legend-inside"
+        style="position: absolute; top: 0; left: 0"
+      >
+        閉じる / 開く
+      </button>
+      <h2>🌊洪水ハザードマップ</h2>
+      <h3 class="worningtext">
+        ・浸水地域には近寄らないでください<br />・低い場所は避けて高い場所に避難しましょう<br />・傾斜のある場所には近寄らないでください
+      </h3>
+      <h4>浸水深凡例</h4>
+      <div>
+        <span class="color-box" style="background-color: #a8d1ff"></span>
+        0m以上0.5m未満
+      </div>
+      <div>
+        <span class="color-box" style="background-color: #3e9df2"></span>
+        0.5m以上3.0m未満
+      </div>
+      <div>
+        <span class="color-box" style="background-color: #0055cc"></span>
+        3.0m以上5.0m未満
+      </div>
+      <div>
+        <span class="color-box" style="background-color: #002b80"></span>
+        5.0m以上10.0m未満
+      </div>
+      <h4>避難所凡例</h4>
+      <div>
+        <span class="circle" style="background-color: #ff0000"></span>
+        避難所（クリックすると詳細が表示されます）
+      </div>
+      <div>
+        <span class="circle" style="background-color: #000000"></span>
+        現在位置
+      </div>
+    </div>
+    <div id="map"></div>
+    <script>
+      (async () => {
+        let map;
+        const res = await fetch("./tiles.json");
+        const tilejson = await res.json();
+        let isPointClick = false;
+        const zoom = (tilejson.minzoom + tilejson.maxzoom) / 2;
+        map = new maplibregl.Map({
+          container: "map",
+          style: "./style.json",
+          center: [139.75538, 35.71404],
+          zoom: 12.5,
+          pitch: 60,
+          bearing: 40.96,
+          terrain: {
+            source: "terrainSource",
+            // exaggeration: 3,
+          },
+        });
+        map.on("load", () => {
+          map.addControl(new maplibregl.NavigationControl());
+          map.addSource("flooddata", {
+            type: "geojson",
+            data: "https://shogohirasawa.github.io/2022BunkyokuFlood/2022BunkyokuFlood.geojson",
+            maxzoom: 14,
+          });
+          map.addSource("StartPoint", {
+            type: "geojson",
+            data: "./data/Startpoint.geojson",
+          });
+
+          map.addSource("root001", {
+            type: "geojson",
+            data: "./data/001.geojson",
+          });
+          map.addSource("root002", {
+            type: "geojson",
+            data: "./data/002.geojson",
+          });
+          map.addSource("root003", {
+            type: "geojson",
+            data: "./data/003.geojson",
+          });
+          map.addSource("root004", {
+            type: "geojson",
+            data: "./data/004.geojson",
+          });
+
+          map.addSource("hillshadeSource", {
+            type: "raster-dem",
+            tiles: ["gsidem://./DEMtiles/{z}/{x}/{y}.png"],
+            tileSize: 256,
+          });
+          map.addSource("terrainSource", {
+            type: "raster-dem",
+            tiles: ["gsidem://./DEMtiles/{z}/{x}/{y}.png"],
+            tileSize: 256,
+          });
+
+          map.addSource("evacuations", {
+            type: "geojson",
+            data: "https://shogohirasawa.github.io/UNVT_for_Tokyo-to/data/evacuation_center_Tokyo.geojson",
+          });
+
+          map.on("click", "evacuations", function (e) {
+            let properties = e.features[0].properties;
+            let tableHTML = "<table>";
+            for (let prop in properties) {
+              tableHTML += `<tr><td>${prop}</td><td>${properties[prop]}</td></tr>`;
+            }
+            tableHTML += "</table>";
+
+            new maplibregl.Popup()
+              .setLngLat(e.lngLat) // Set location to the point clicked
+              .setHTML(tableHTML) // Set content to the generated HTML
+              .addTo(map); // Add to map
+          });
+          map.on("mouseenter", "points", function () {
+            map.getCanvas().style.cursor = "pointer"; // Change cursor style to pointer
+          });
+          // When the cursor leaves a feature in the point layer, revert actions for the cursor-related event.
+          map.on("mouseleave", "points", function () {
+            map.getCanvas().style.cursor = ""; // Reset cursor style on mouse leave
+          });
+
+          map.addLayer({
+            id: "flooddata",
+            type: "fill",
+            source: "flooddata",
+            layout: {},
+            paint: {
+              "fill-color": [
+                "interpolate",
+                ["linear"],
+                ["get", "A31_205"],
+                1,
+                "#a8d1ff",
+                2,
+                "#3e9df2",
+                3,
+                "#0055cc",
+                4,
+                "#002b80",
+              ],
+              "fill-opacity": 0.7,
+            },
+          });
+
+          // map.addLayer({
+          //   id: "line001",
+          //   type: "line",
+          //   source: "root001",
+          //   layout: {},
+          //   paint: {
+          //     "line-color": "#ff0000",
+          //     "line-width": 10,
+          //   },
+          // });
+          // map.addLayer({
+          //   id: "line002",
+          //   type: "line",
+          //   source: "root002",
+          //   layout: {},
+          //   paint: {
+          //     "line-color": "#3dbbff",
+          //     "line-width": 10,
+          //   },
+          // });
+          // map.addLayer({
+          //   id: "line003",
+          //   type: "line",
+          //   source: "root003",
+          //   layout: {},
+          //   paint: {
+          //     "line-color": "#9e26bf",
+          //     "line-width": 10,
+          //   },
+          // });
+          // map.addLayer({
+          //   id: "line004",
+          //   type: "line",
+          //   source: "root004",
+          //   layout: {},
+          //   paint: {
+          //     "line-color": "#26bf2b",
+          //     "line-width": 10,
+          //   },
+          // });
+          // map.addLayer({
+          //   id: "startpoint",
+          //   type: "circle",
+          //   source: "StartPoint",
+          //   paint: {
+          //     "circle-color": "#000000",
+          //     "circle-radius": 9,
+          //     "circle-stroke-width": 4,
+          //     "circle-stroke-color": "#fff",
+          //   },
+          //   filter: ["==", "$type", "Point"],
+          // });
+
+          map.addLayer({
+            id: "evacuations",
+            type: "circle",
+            source: "evacuations",
+            paint: {
+              "circle-color": "#ff0000",
+              "circle-radius": 7,
+              "circle-stroke-width": 4,
+              "circle-stroke-color": "#fff",
+            },
+            filter: ["==", "$type", "Point"],
+          });
+          map.addLayer({
+            id: "hills",
+            type: "hillshade",
+            source: "hillshadeSource",
+            layout: { visibility: "visible" },
+            paint: {
+              "hillshade-shadow-color": "#000000",
+              "hillshade-highlight-color": "#000000",
+            },
+          });
+          map.addControl(
+            new maplibregl.TerrainControl({
+              source: "terrainSource",
+              // exaggeration: 1, // 標高を強調する倍率
+            })
+          );
+          map.setTerrain({ source: "terrainSource", exaggeration: 5 });
+
+          map.addControl(
+            new maplibregl.AttributionControl({
+              compact: true,
+              customAttribution:
+                "Style © <a href='http://openmaptiles.org/'>OpenMapTiles</a>  " +
+                " © <a href='https://maps.gsi.go.jp/vector/'>地理院地図Vector（仮称）</a> | " +
+                "Data © <a href='http://www.openstreetmap.org/copyright'>OpenStreetMap contributors</a> " +
+                "© <a href='https://catalog.data.metro.tokyo.lg.jp/dataset/t000003d0000000093?fbclid=IwAR3iaIsI7e0rmSCiyZoNaw6GaiX1dqd87qXnSDoosOWYNd1kbWoNHdVF1xI'>東京都オープンデータカタログサイト<a>" +
+                "© <a href='https://maps.gsi.go.jp/development/ichiran.html#dem'>標高タイル（国土地理院）<a>" +
+                "© <a href='https://nlftp.mlit.go.jp/ksj/gml/datalist/KsjTmplt-A31-v3_0.html#!'>国土数値情報（洪水浸水想定区域データ（河川単位））（国土交通省）を加工して作成<a>",
+            })
+          );
+        });
+      })();
+    </script>
+    <script>
+      document
+        .getElementById("toggle-legend-inside")
+        .addEventListener("click", function () {
+          var legendContents = document.querySelectorAll(
+            ".legend > *:not(#toggle-legend-inside)"
+          );
+          for (var i = 0; i < legendContents.length; i++) {
+            if (legendContents[i].style.display === "none") {
+              legendContents[i].style.display = "block";
+            } else {
+              legendContents[i].style.display = "none";
+            }
+          }
+        });
+    </script>
+    <div
+      id="info"
+      style="
+        position: absolute;
+        top: 10px;
+        left: 10px;
+        max-width: 300px;
+        background-color: white;
+        padding: 10px;
+        border-radius: 5px;
+        z-index: 1000;
+        display: none;
+      "
+    >
+      <table id="info-table"></table>
+    </div>
+  </body>
+</html>
